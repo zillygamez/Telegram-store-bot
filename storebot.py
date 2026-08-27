@@ -8,7 +8,7 @@ from telebot import types
 # ---------------------------------------------------------------------------
 # CONFIGURATION & RAILWAY PERSISTENT DATABASE SETUP
 # ---------------------------------------------------------------------------
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8821135559:AAHB9rE-FFuJGZWrdPVGSL_XI90s0tAXep8")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 ADMINS = [7204109026]  #@Zillycpm
 
 BINANCE_PAY_ID = ""      # Replace with your Binance Pay ID / USDT Address
