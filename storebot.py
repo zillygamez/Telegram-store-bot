@@ -10,7 +10,7 @@ from telebot import types
 # ---------------------------------------------------------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 ADMINS = [7204109026]  #@Zillycpm
-
+ADMINS=  [8787945284]
 BINANCE_PAY_ID = ""      # Replace with your Binance Pay ID / USDT Address
 GPAY_PAYMENT_INFO = "patigarooruman@okaxis"   # Replace with your UPI ID or GPay phone number
 
