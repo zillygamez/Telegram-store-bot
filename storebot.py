@@ -1,4 +1,24 @@
 import os
+from threading import Thread
+from flask import Flask
+
+# --- FLASK SERVER TO SATISFY RENDER PORT CHECK ---
+app = Flask(__name__)
+
+@app.route('/')
+def health_check():
+    return "Bot is active!", 200
+
+def run_server():
+    # Render assigns dynamic port via PORT environment variable
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+# Run Flask in a background thread so it doesn't block the bot
+Thread(target=run_server, daemon=True).start()
+# --------------------------------------------------
+
+import os
 import sqlite3
 from datetime import datetime
 import telebot
