@@ -4,18 +4,16 @@ from datetime import datetime
 import telebot
 from telebot import types
 
-
 # ---------------------------------------------------------------------------
 # CONFIGURATION & RAILWAY PERSISTENT DATABASE SETUP
 # ---------------------------------------------------------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-ADMINS = [7204109026]  #@Zillycpm
-ADMINS=  [8787945284]
+# Combined ADMIN list so both users have access
+ADMINS = [7204109026, 8787945284]
 BINANCE_PAY_ID = ""      # Replace with your Binance Pay ID / USDT Address
 GPAY_PAYMENT_INFO = "patigarooruman@okaxis"   # Replace with your UPI ID or GPay phone number
 
 # Railway Persistent Volume database path check
-# if os.environ.get("RAILWAY_ENVIRONMENT"):
 if os.environ.get("RAILWAY_ENVIRONMENT"):
     DB_DIR = "/app/data"
 else:
@@ -36,7 +34,7 @@ def escape_md(text):
     return s
 
 # ---------------------------------------------------------------------------
-# GARAGE SECTIONS CONFIGURATION - NEW CPM1/CPM2 STRUCTURE
+# GARAGE SECTIONS CONFIGURATION - CPM1/CPM2 STRUCTURE
 # ---------------------------------------------------------------------------
 GARAGE_SECTIONS = {
     "cpm1": {
@@ -64,9 +62,8 @@ GARAGE_SECTIONS = {
 def get_subsection_label(section, subsection):
     try:
         return GARAGE_SECTIONS[section]["subsections"][subsection]
-    except:
+    except Exception:
         return subsection.replace("_", " ").title()
-
 
 # ---------------------------------------------------------------------------
 # DATABASE INITIALIZATION
@@ -138,7 +135,6 @@ def init_db():
     except sqlite3.OperationalError: pass
     try: cursor.execute("ALTER TABLE garage_cars ADD COLUMN subsection TEXT DEFAULT 'kdm_cars'")
     except sqlite3.OperationalError: pass
-
 
     default_cats = [
         ("cpm1", "CPM 1 Accounts", "High quality CPM1 accounts with premium cars.", 500, 5.0, 450.0, "account"),
@@ -322,7 +318,6 @@ def view_garage(call):
     except Exception:
         bot.send_message(call.message.chat.id, text, parse_mode="Markdown", reply_markup=markup)
 
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith("garage_section:"))
 def garage_section_handler(call):
     section = call.data.split(":")[1]
@@ -344,7 +339,6 @@ def garage_section_handler(call):
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode="Markdown", reply_markup=markup)
     except Exception:
         bot.send_message(call.message.chat.id, text, parse_mode="Markdown", reply_markup=markup)
-
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("garage_subsection:"))
 def garage_subsection_handler(call):
@@ -799,7 +793,6 @@ def admin_panel_callbacks(call):
         bot.edit_message_text("➕ *CREATE NEW CATEGORY/SERVICE*\n\nSelect the type of item you want to add:", 
                                call.message.chat.id, call.message.message_id, parse_mode="Markdown", reply_markup=markup)
 
-    # 🟢 FEATURE 1: VIEW ALL PREVIOUS ORDERS WITH USER DETAILS & TIMESTAMP
     elif action.startswith("allorders"):
         page = 0
         if ":" in action:
@@ -852,7 +845,6 @@ def admin_panel_callbacks(call):
         markup.add(types.InlineKeyboardButton("🔙 Back to Panel", callback_data="adm_panel"))
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode="Markdown", reply_markup=markup)
 
-    # 🟢 FEATURE 2: MANAGE & DELETE UNWANTED REVIEWS
     elif action == "delreviews":
         conn = get_db()
         cursor = conn.cursor()
@@ -924,7 +916,8 @@ def admin_panel_callbacks(call):
         text = "📊 *CURRENT ACCOUNT STOCK*\n\n"
         for cat in all_cats:
             if cat['cat_type'] != "service" and not is_service(cat['category_id']):
-                text += f"• `{cat['category_id']}`: {counts.get(cat['category_id'], 0)} available\n"
+                safe_cat_id = escape_md(cat['category_id'])
+                text += f"• `{safe_cat_id}`: {counts.get(cat['category_id'], 0)} available\n"
         
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("🔙 Back to Panel", callback_data="adm_panel"))
@@ -973,7 +966,6 @@ def admin_panel_callbacks(call):
     elif action == "panel":
         send_admin_panel(call.message.chat.id, call.message.message_id)
 
-# Handler to actually execute Review Deletion
 @bot.callback_query_handler(func=lambda call: call.data.startswith("delrev_"))
 def process_delete_review_callback(call):
     if call.from_user.id not in ADMINS: return
@@ -987,11 +979,9 @@ def process_delete_review_callback(call):
     
     bot.answer_callback_query(call.id, f"✅ Review #{review_id} deleted successfully!", show_alert=True)
     
-    # Refresh the manage reviews menu
     call.data = "adm_delreviews"
     admin_panel_callbacks(call)
 
-# Handler for selecting Account vs Service type
 @bot.callback_query_handler(func=lambda call: call.data.startswith("addcat_type:"))
 def prompt_category_details(call):
     if call.from_user.id not in ADMINS: return
@@ -1027,11 +1017,11 @@ def process_add_category(message, cat_type):
         conn.close()
 
         type_label = "🛠 Service / Injection" if cat_type == "service" else "🔑 Account"
-        bot.send_message(message.chat.id, f"✅ *New {type_label} Created Successfully!*\n\n🆔 *ID:* `{cat_id}`\n📌 *Title:* {title}\n📝 *Description:* {desc}\n⭐ *Stars:* {stars} | 🟡 *Binance:* ${binance:.2f} | 📱 *GPay:* {gpay:.2f}\n\nIt is now live in the main user menu!", parse_mode="Markdown")
+        safe_cat_id = escape_md(cat_id)
+        bot.send_message(message.chat.id, f"✅ *New {type_label} Created Successfully!*\n\n🆔 *ID:* `{safe_cat_id}`\n📌 *Title:* {escape_md(title)}\n📝 *Description:* {escape_md(desc)}\n⭐ *Stars:* {stars} | 🟡 *Binance:* ${binance:.2f} | 📱 *GPay:* {gpay:.2f}\n\nIt is now live in the main user menu!", parse_mode="Markdown")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ *Error creating category:* {e}\n\nPlease make sure to use the exact format `cat_id | Title | Description | Stars | Binance | GPay`.")
 
-# Admin Coupon Creation Flow
 @bot.callback_query_handler(func=lambda call: call.data == "create_coupon")
 def create_coupon_prompt(call):
     if call.from_user.id not in ADMINS: return
@@ -1053,12 +1043,12 @@ def process_coupon_creation(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ Error creating coupon: {e}")
 
-# Admin Price Edit Flow
 @bot.callback_query_handler(func=lambda call: call.data.startswith("price_edit_"))
 def edit_price_prompt(call):
     if call.from_user.id not in ADMINS: return
     cat_id = call.data.replace("price_edit_", "")
-    msg = bot.send_message(call.message.chat.id, f"🏷 *Enter new prices for `{cat_id}`:*\n\nFormat: `StarsPrice | BinancePrice | GPayPrice`\nExample: `500 | 5.0 | 450.0`", parse_mode="Markdown")
+    safe_cat_id = escape_md(cat_id)
+    msg = bot.send_message(call.message.chat.id, f"🏷 *Enter new prices for `{safe_cat_id}`:*\n\nFormat: `StarsPrice | BinancePrice | GPayPrice`\nExample: `500 | 5.0 | 450.0`", parse_mode="Markdown")
     bot.register_next_step_handler(msg, process_price_update, cat_id)
 
 def process_price_update(message, cat_id):
@@ -1072,11 +1062,11 @@ def process_price_update(message, cat_id):
         conn.commit()
         conn.close()
         
-        bot.send_message(message.chat.id, f"✅ *Prices Updated for `{cat_id}`!*", parse_mode="Markdown")
+        safe_cat_id = escape_md(cat_id)
+        bot.send_message(message.chat.id, f"✅ *Prices Updated for `{safe_cat_id}`!*", parse_mode="Markdown")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ Error updating price: {e}")
 
-# Admin QR / Restock / Car Handlers
 def process_gpay_qr_upload(message):
     if message.from_user.id not in ADMINS: return
     if not message.photo: return
@@ -1088,7 +1078,8 @@ def process_gpay_qr_upload(message):
 def process_addstock_category(call):
     if call.from_user.id not in ADMINS: return
     cat_id = call.data.replace("addstock_", "")
-    msg = bot.send_message(call.message.chat.id, f"📥 Send the credentials for `{cat_id}`.\n\nFormat (one per line):\n`email1:pass1`\n`email2:pass2`", parse_mode="Markdown")
+    safe_cat_id = escape_md(cat_id)
+    msg = bot.send_message(call.message.chat.id, f"📥 Send the credentials for `{safe_cat_id}`.\n\nFormat (one per line):\n`email1:pass1`\n`email2:pass2`", parse_mode="Markdown")
     bot.register_next_step_handler(msg, process_bulk_restock, cat_id)
 
 def process_bulk_restock(message, cat_id):
@@ -1104,7 +1095,8 @@ def process_bulk_restock(message, cat_id):
     cursor.execute("INSERT OR REPLACE INTO stock_metadata (product_type, last_restock_date, last_restock_time) VALUES (?, ?, ?)", (cat_id, d, t))
     conn.commit()
     conn.close()
-    bot.send_message(message.chat.id, f"✅ Successfully added {added} accounts to `{cat_id}`.")
+    safe_cat_id = escape_md(cat_id)
+    bot.send_message(message.chat.id, f"✅ Successfully added {added} accounts to `{safe_cat_id}`.", parse_mode="Markdown")
 
 def process_car_photo(message):
     if not message.photo: return
@@ -1123,7 +1115,7 @@ def admin_select_section(call):
     try:
         _, section, target_user_id = call.data.split(":")
         target_user_id = int(target_user_id)
-    except:
+    except Exception:
         bot.answer_callback_query(call.id, "Error parsing")
         return
     state_key = f"newcar_{target_user_id}"
@@ -1135,7 +1127,7 @@ def admin_select_section(call):
     for sub_id, sub_label in GARAGE_SECTIONS[section]["subsections"].items():
         markup.add(types.InlineKeyboardButton(f"• {sub_label}", callback_data=f"carsub_select:{section}:{sub_id}:{target_user_id}"))
     sec_label = GARAGE_SECTIONS[section]["label"]
-    bot.edit_message_text(f"📂 Section selected: *{sec_label}*\n\nNow select *SUBSECTION*:", chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown", reply_markup=markup)
+    bot.edit_message_text(f"📂 Section selected: *{escape_md(sec_label)}*\n\nNow select *SUBSECTION*:", chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown", reply_markup=markup)
     bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("carsub_select:"))
@@ -1144,7 +1136,7 @@ def admin_select_subsection(call):
     try:
         _, section, subsection, target_user_id = call.data.split(":", 3)
         target_user_id = int(target_user_id)
-    except:
+    except Exception:
         bot.answer_callback_query(call.id, "Error parsing")
         return
     state_key = f"newcar_{target_user_id}"
@@ -1154,7 +1146,7 @@ def admin_select_subsection(call):
     user_states[state_key]["subsection"] = subsection
     sec_label = GARAGE_SECTIONS[section]["label"]
     sub_label = get_subsection_label(section, subsection)
-    bot.edit_message_text(f"✅ Selected: *{sec_label} > {sub_label}*\n\n📝 Now enter car details.\nFormat: `Brand | Owner | StarsPrice | BinancePrice | GpayPrice`\nExample: `BMW M5 | @Zillycpm | 500 | 5.0 | 450.0`", chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text(f"✅ Selected: *{escape_md(sec_label)} > {escape_md(sub_label)}*\n\n📝 Now enter car details.\nFormat: `Brand | Owner | StarsPrice | BinancePrice | GpayPrice`\nExample: `BMW M5 | @Zillycpm | 500 | 5.0 | 450.0`", chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown")
     msg = bot.send_message(call.message.chat.id, "Waiting for details...")
     bot.register_next_step_handler(msg, process_car_details)
     bot.answer_callback_query(call.id)
@@ -1180,7 +1172,7 @@ def process_car_details(message):
         user_states.pop(f"newcar_{message.from_user.id}", None)
         sec_label = GARAGE_SECTIONS.get(section, {}).get("label", section)
         sub_label = get_subsection_label(section, subsection)
-        bot.send_message(message.chat.id, f"✅ Car added successfully!\n\n📂 Location: *{sec_label} > {sub_label}*\n🚘 Brand: {brand}")
+        bot.send_message(message.chat.id, f"✅ Car added successfully!\n\n📂 Location: *{escape_md(sec_label)} > {escape_md(sub_label)}*\n🚘 Brand: {escape_md(brand)}", parse_mode="Markdown")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ Error: {e}")
 
@@ -1313,7 +1305,8 @@ def process_rating(message):
         msg = bot.send_message(message.chat.id, "💬 Now, please type your review comment:")
         bot.register_next_step_handler(msg, process_review_comment)
     except ValueError:
-        bot.send_message(.chat.id, "❌ Invalid rating. Please start again from the main menu.")
+        # Fixed syntax error (.chat.id -> message.chat.id)
+        bot.send_message(message.chat.id, "❌ Invalid rating. Please start again from the main menu.")
 
 def process_review_comment(message):
     user_id = message.from_user.id
@@ -1337,3 +1330,4 @@ def process_review_comment(message):
 
 # Start Polling
 bot.infinity_polling(timeout=10, long_polling_timeout=5)
+
